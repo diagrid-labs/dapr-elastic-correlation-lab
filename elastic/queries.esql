@@ -58,3 +58,17 @@ FROM metrics-*
 | WHERE attributes.app_id IS NOT NULL
 | KEEP @timestamp, attributes.app_id, resource.attributes.service.name
 | LIMIT 10;
+
+-- The join. Each API appears twice, once from the logs and once from the
+-- traces, with matching status.
+FROM logs-*, traces-* METADATA _index
+| EVAL service = COALESCE(attributes.app_id::keyword,
+                          resource.attributes.service.name::keyword)
+| EVAL api     = COALESCE(attributes.method::keyword,
+                          attributes.dapr.api::keyword)
+| EVAL status  = COALESCE(attributes.code::keyword,
+                          attributes.dapr.status_code::keyword)
+| EVAL signal  = CASE(STARTS_WITH(_index, ".ds-logs"), "log", "span")
+| WHERE service == "logtest" AND api IS NOT NULL
+| STATS count = COUNT(*) BY api, signal, status
+| SORT api, signal;

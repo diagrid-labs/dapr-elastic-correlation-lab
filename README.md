@@ -51,6 +51,29 @@ Dapr sets `service.name` on the span to the app_id. The span also carries
 `attributes.dapr.api` and `attributes.dapr.status_code`, which match `method`
 and `code` on the access log line. Metrics join on `app_id`.
 
+Normalising those into common columns puts each API next to itself, once from
+the log side and once from the span side:
+
+```
+FROM logs-*, traces-* METADATA _index
+| EVAL service = COALESCE(attributes.app_id::keyword,
+                          resource.attributes.service.name::keyword)
+| EVAL api     = COALESCE(attributes.method::keyword,
+                          attributes.dapr.api::keyword)
+| EVAL status  = COALESCE(attributes.code::keyword,
+                          attributes.dapr.status_code::keyword)
+| EVAL signal  = CASE(STARTS_WITH(_index, ".ds-logs"), "log", "span")
+| WHERE service == "logtest" AND api IS NOT NULL
+| STATS count = COUNT(*) BY api, signal, status
+| SORT api, signal
+```
+
+![span and log line side by side](images/span-log-join.jpg)
+
+The counts differ because one request writes one access log line but several
+spans. The `::keyword` casts are needed because the same field is mapped as
+`keyword` in one stream and `text` in another.
+
 Dapr log lines carry no `trace.id`, so Elastic's trace to logs click through in
 the APM UI does not work. Tracked in
 <https://github.com/dapr/dapr/issues/10979>.
