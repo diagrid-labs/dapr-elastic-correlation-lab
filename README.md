@@ -1,7 +1,5 @@
 # dapr-elastic-correlation-lab
 
-## The situation
-
 Dapr logs come in through a log shipper and land in `logs-*`. Traces and
 metrics come in through an OpenTelemetry collector and land in the APM streams.
 Two data views, so following anything across them means leaving one and
@@ -19,8 +17,7 @@ Use your real stream names. With the APM integration the traces one is
 
 ![one data view](images/one-data-view.svg)
 
-One view over all three, nothing changes in the pipeline. Queries work across
-them too:
+Queries work across all three as well:
 
 ![ES|QL across three streams](images/esql-three-streams.jpg)
 
@@ -36,17 +33,17 @@ On the Dapr Helm release, for the control plane:
 
     global.logAsJson=true
 
-That covers the control plane only, and the pod annotation covers the sidecar.
-Neither implies the other.
+`global.logAsJson` applies to the control plane and the pod annotation applies
+to the sidecar, so set both.
 
-In the log pipeline, parse the JSON conditionally. `dapr-system` is not one
-format: the scheduler emits etcd zap JSON (`ts`, `caller`) and plaintext
-alongside Dapr's own JSON. Group control plane views on the container name,
-since `scope` is absent on most scheduler lines.
+In the log pipeline, parse the JSON conditionally. `dapr-system` emits three
+formats: Dapr's own JSON, etcd zap JSON (`ts`, `caller`) from the scheduler,
+and plaintext. Group control plane views on the container name, since `scope`
+is absent on most scheduler lines.
 
-In the metrics pipeline, add `cumulativetodelta`, or the Elasticsearch exporter
-drops every Dapr histogram including `dapr_http_server_latency`. Counters still
-arrive, so it looks like it is working.
+In the metrics pipeline, add `cumulativetodelta`. Without it the Elasticsearch
+exporter drops every Dapr histogram, including `dapr_http_server_latency`,
+while counters keep arriving.
 
 ## Joining a span to its log lines
 
@@ -55,8 +52,8 @@ Dapr sets `service.name` on the span to the app_id. The span also carries
 and `code` on the access log line. Metrics join on `app_id`.
 
 Dapr log lines carry no `trace.id`, so Elastic's trace to logs click through in
-the APM UI does not work, and moving the logs into the APM data stream would not
-change that. Tracked in <https://github.com/dapr/dapr/issues/10979>.
+the APM UI does not work. Tracked in
+<https://github.com/dapr/dapr/issues/10979>.
 
 ## The lab
 
