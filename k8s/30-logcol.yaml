@@ -33,6 +33,9 @@ data:
         start_at: end
         operators:
           - type: container
+          # The guard matters. dapr-system is not one log format: the scheduler
+          # emits embedded etcd zap JSON (ts, caller) and plaintext alongside
+          # Dapr's own JSON. Parsing unconditionally errors on the plaintext.
           - type: json_parser
             if: 'body matches "^\\{"'
             parse_from: body
@@ -43,6 +46,8 @@ data:
       batch: {}
     exporters:
       elasticsearch:
+        # CHANGE ME: your Elasticsearch endpoint.
+        # host.minikube.internal reaches the host from inside minikube.
         endpoints: ["http://host.minikube.internal:9200"]
         logs_index: logs-dapr-default
         mapping: {mode: otel}

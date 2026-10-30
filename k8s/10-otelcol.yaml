@@ -28,6 +28,8 @@ data:
       cumulativetodelta: {}
     exporters:
       elasticsearch:
+        # CHANGE ME: your Elasticsearch endpoint.
+        # host.minikube.internal reaches the host from inside minikube.
         endpoints: ["http://host.minikube.internal:9200"]
         mapping: {mode: otel}
         flush: {interval: 2s}

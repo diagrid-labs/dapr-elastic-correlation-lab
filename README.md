@@ -16,6 +16,42 @@ different collectors.
 
 ![ES|QL across three streams](images/esql-three-streams.jpg)
 
+## The settings
+
+Everything that matters, to lift into your own cluster.
+
+**The data view.** Kibana, Stack Management, Data Views, Create. Put all three
+patterns in the index pattern field, comma separated, no spaces:
+
+    logs-*,traces-*,metrics-*
+
+Substitute your real stream names: with the APM integration the traces one is
+`traces-apm-*`. That single field is the whole fix.
+
+**On each pod template**, so there is something to correlate:
+
+    dapr.io/enable-api-logging: "true"   # Dapr's access log, the HTTP API Called lines
+    dapr.io/log-as-json: "true"          # sidecar JSON
+    dapr.io/enable-metrics: "true"       # metrics are scraped off this annotation
+
+**On the Dapr Helm release**, for the control plane:
+
+    global.logAsJson=true
+
+It covers the control plane only and defaults to false. The pod annotation
+covers the sidecar. Neither implies the other.
+
+**In the log pipeline**, parse the JSON conditionally. `dapr-system` is not one
+format: the scheduler emits embedded etcd zap JSON (`ts`, `caller`) and
+plaintext alongside Dapr's own JSON, so a parser keyed on `time` loses their
+timestamps and anything grouped by `scope` shows the scheduler as blank. Group
+control plane views on the container name instead.
+
+**In the metrics pipeline**, add `cumulativetodelta`. Dapr's histograms are
+cumulative and the Elasticsearch exporter drops every one without it, which
+takes `dapr_http_server_latency` and the rest of the latency metrics with it.
+Counters still arrive, so the pipeline looks fine.
+
 ## Lining a span up with its log lines
 
 Dapr sets `service.name` on the span to the app_id, so it already matches the
