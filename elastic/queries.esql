@@ -17,15 +17,6 @@ FROM logs-*, traces-*, metrics-* METADATA _index
 | STATS docs = COUNT(*) BY signal
 | SORT signal;
 
--- Same thing over time, which is the chart on the dashboard.
-FROM logs-*, traces-*, metrics-* METADATA _index
-| EVAL service = COALESCE(attributes.app_id::keyword,
-                          resource.attributes.service.name::keyword)
-| EVAL signal = CASE(STARTS_WITH(_index, ".ds-logs"), "logs",
-                     STARTS_WITH(_index, ".ds-traces"), "traces", "metrics")
-| WHERE service == "logtest"
-| STATS docs = COUNT(*) BY ts = BUCKET(@timestamp, 1 minute), signal
-| SORT ts;
 
 -- Dapr API call volume by status code.
 FROM logs-*

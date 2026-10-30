@@ -21,10 +21,6 @@ One service across all three signals in a single query:
 
 ![ES|QL across three streams](images/esql-three-streams.jpg)
 
-And as one chart:
-
-![three signals in one chart](images/three-signals-chart.jpg)
-
 ## Settings
 
 On each pod template:
