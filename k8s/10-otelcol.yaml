@@ -1,5 +1,7 @@
 # Collector as an ordinary Deployment, not a DaemonSet.
-# It receives OTLP and writes straight into Elasticsearch.
+# Traces arrive over OTLP because daprd pushes them. Metrics are scraped from
+# the daprd metrics endpoint inside the cluster. Neither needs node access,
+# which is the point when the application team does not own the nodes.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,6 +13,19 @@ data:
       otlp:
         protocols:
           grpc: {endpoint: 0.0.0.0:4317}
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: daprd
+              scrape_interval: 10s
+              static_configs:
+                - targets: ['logtest-dapr.default.svc.cluster.local:9090']
+    processors:
+      # Required. Dapr emits cumulative temporality histograms and the
+      # Elasticsearch exporter drops every one of them with
+      # "dropping cumulative temporality histogram ...", which silently
+      # removes dapr_http_server_latency and the rest of the latency metrics.
+      cumulativetodelta: {}
     exporters:
       elasticsearch:
         endpoints: ["http://host.minikube.internal:9200"]
@@ -18,10 +33,14 @@ data:
         flush: {interval: 2s}
     service:
       telemetry:
-        logs: {level: debug}
+        logs: {level: info}
       pipelines:
         traces:
           receivers: [otlp]
+          exporters: [elasticsearch]
+        metrics:
+          receivers: [prometheus]
+          processors: [cumulativetodelta]
           exporters: [elasticsearch]
 ---
 apiVersion: apps/v1

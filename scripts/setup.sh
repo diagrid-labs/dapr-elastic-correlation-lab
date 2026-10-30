@@ -15,7 +15,10 @@ until curl -sf "$ES/_cluster/health" >/dev/null; do sleep 3; done
 # template. Elastic Cloud ships equivalents via the APM integration; a bare
 # cluster does not.
 echo "==> index templates"
-for t in lab-logs lab-traces lab-metrics; do
+# NOTE: no lab-metrics here on purpose. A metrics-* template at a high priority
+# shadows Elastic's own metrics-otel@template (metrics-*.otel-*, priority 120)
+# and every metric document then fails with document_parsing_exception.
+for t in lab-logs lab-traces; do
   curl -sf -X PUT "$ES/_index_template/$t" \
     -H 'Content-Type: application/json' \
     -d @"$HERE/elastic/index-templates/$t.json" >/dev/null

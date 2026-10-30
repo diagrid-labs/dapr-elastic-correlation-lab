@@ -2,11 +2,13 @@
 -- cluster: with the APM integration traces land in traces-apm-* rather than
 -- traces-generic-default.
 
--- One query spanning both patterns. This is the proof that logs and traces do
--- not need to live in the same data stream to be queried together.
+-- One query spanning all three patterns. This is the proof that the signals do
+-- not need to live in the same data stream to be queried together: three rows
+-- come back from three data streams written by two different collectors.
 -- METADATA _index is required; _index is not otherwise a selectable column.
-FROM logs-*, traces-* METADATA _index
-| STATS docs = COUNT(*) BY _index;
+FROM logs-*, traces-*, metrics-* METADATA _index
+| STATS docs = COUNT(*) BY _index
+| SORT docs DESC;
 
 -- Dapr API call volume by status code.
 FROM logs-*
@@ -40,3 +42,11 @@ FROM traces-*
        attributes.dapr.api, attributes.dapr.status_code, duration
 | SORT @timestamp DESC
 | LIMIT 20;
+
+-- Metrics join to the log side on attributes.app_id, NOT on service.name:
+-- resource.attributes.service.name is "daprd" on a metric because it names the
+-- scrape target, while on a span it is the Dapr app id.
+FROM metrics-*
+| WHERE attributes.app_id IS NOT NULL
+| KEEP @timestamp, attributes.app_id, resource.attributes.service.name
+| LIMIT 10;

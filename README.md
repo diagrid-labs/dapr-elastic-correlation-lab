@@ -15,13 +15,18 @@ free basic licence, so no Elastic account is needed. Dapr 1.19.0 on minikube.
 
 ## What it shows
 
-**A single Kibana data view accepts a comma separated pattern.** `logs-*,traces-*`
-resolved 87 fields from both sides at once: `app_id`, `method`, `code` and
-`message` from the logs next to `trace_id`, `span_id`,
-`resource.attributes.service.name` and `attributes.dapr.*` from the traces.
-ES|QL spans both patterns in one statement the same way. Two data views that do
-not connect is a data view configuration problem, not a data stream problem, and
-no pipeline change is required to fix it.
+**A single Kibana data view accepts a comma separated pattern**, and it holds
+for all three signals. `logs-*,traces-*` resolves 118 fields, and
+`logs-*,traces-*,metrics-*` resolves 389, in both cases an exact union of what
+each pattern resolves alone. ES|QL spans them in one statement the same way.
+Two data views that do not connect is a data view configuration problem, not a
+data stream problem, and no pipeline change is required to fix it.
+
+**But widening the pattern collides fields.** Ten fields conflict across the
+three way view, `app_id`, `method` and `resource.attributes.service.name` among
+them, and a conflicted field cannot be aggregated on. That is a mapping
+discipline problem rather than a flaw in the approach, and
+[docs/screenshots.md](docs/screenshots.md) has the measurements and the fix.
 
 **Dapr already emits the identity Elastic APM keys on.** Span resource
 attributes carry `service.name` set to the Dapr app_id, so aligning the log side
@@ -38,12 +43,15 @@ Dapr log line, confirmed across 1347 documents. Feature request filed upstream:
 <https://github.com/dapr/dapr/issues/10979>.
 
 Full detail, including what did not work, is in [FINDINGS.md](FINDINGS.md).
+Screenshots of each of these against live data are in
+[docs/screenshots.md](docs/screenshots.md).
 
 ## Layout
 
     docker-compose.yml                 Elasticsearch + Kibana 9.1.0
     k8s/00-tracing-config.yaml         fully sampled tracing, OTLP push
     k8s/10-otelcol.yaml                collector as a Deployment, not a DaemonSet
+    docs/screenshots.md                captures of every claim above
     k8s/20-logtest.yaml                app + daprd + traffic driver
     elastic/index-templates/           data stream templates the exporter needs
     elastic/dapr-elastic-dashboard.ndjson   four panel dashboard + combined data view
@@ -93,10 +101,21 @@ there are no `HTTP API Called` lines and nothing to correlate a span against.
 `[::1],127.0.0.1`, so a driver in its own Deployment reaches nothing while
 looking perfectly correct.
 
-**The collector needs no node access.** daprd pushes OTLP to an endpoint, so an
-ordinary Deployment in the application team's own namespace is enough. A
-DaemonSet is only needed to tail files off the node, which is the log shipper's
-job, not the collector's.
+**The collector needs no node access.** daprd pushes OTLP for traces and its
+metrics endpoint is scraped in cluster, so an ordinary Deployment in the
+application team's own namespace covers both. A DaemonSet is only needed to tail
+files off the node, which is the log shipper's job, not the collector's.
+
+**Dapr histograms vanish without `cumulativetodelta`.** Dapr emits cumulative
+temporality histograms and the Elasticsearch exporter drops every one, taking
+`dapr_http_server_latency` and the rest of the latency metrics with them. It
+says so only as a `warn` line.
+
+**Do not add a high priority `metrics-*` index template.** It shadows Elastic's
+own `metrics-otel@template` (`metrics-*.otel-*`, priority 120) and every metric
+document then fails with `document_parsing_exception` carrying an empty reason.
+`logs-*` and `traces-*` do need the templates in `elastic/index-templates/`;
+metrics does not.
 
 **A bare cluster has no data stream templates.** The Elasticsearch exporter
 fails with `index_not_found_exception ... requires a data stream, but no
