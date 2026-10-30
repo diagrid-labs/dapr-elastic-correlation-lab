@@ -2,13 +2,20 @@
 -- cluster: with the APM integration traces land in traces-apm-* rather than
 -- traces-generic-default.
 
--- One query spanning all three patterns. This is the proof that the signals do
--- not need to live in the same data stream to be queried together: three rows
--- come back from three data streams written by two different collectors.
--- METADATA _index is required; _index is not otherwise a selectable column.
+-- One service across all three signals, from three data streams written by two
+-- different collectors.
+--
+-- The ::keyword casts are needed: app_id is mapped as keyword in the metrics
+-- stream and text in the logs stream, and ES|QL refuses the ambiguity without
+-- them. METADATA _index is required too, or _index is an unknown column.
 FROM logs-*, traces-*, metrics-* METADATA _index
-| STATS docs = COUNT(*) BY _index
-| SORT docs DESC;
+| EVAL service = COALESCE(attributes.app_id::keyword,
+                          resource.attributes.service.name::keyword)
+| EVAL signal = CASE(STARTS_WITH(_index, ".ds-logs"), "logs",
+                     STARTS_WITH(_index, ".ds-traces"), "traces", "metrics")
+| WHERE service == "logtest"
+| STATS docs = COUNT(*) BY signal
+| SORT signal;
 
 -- Dapr API call volume by status code.
 FROM logs-*

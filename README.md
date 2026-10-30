@@ -17,7 +17,7 @@ Use your real stream names. With the APM integration the traces one is
 
 ![one data view](images/one-data-view.svg)
 
-Queries work across all three as well:
+One service across all three signals in a single query:
 
 ![ES|QL across three streams](images/esql-three-streams.jpg)
 
