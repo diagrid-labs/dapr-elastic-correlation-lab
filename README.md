@@ -1,31 +1,22 @@
 # dapr-elastic-correlation-lab
 
-Dapr logs reach Elastic through the platform team's log shipper. Traces and
-metrics reach it through an OpenTelemetry collector. They land in different data
-streams, and the ask is usually to click from a trace straight to that trace's
-log lines, instead of switching panes and searching by hand.
+Dapr logs reach Elastic through the platform team's log shipper, landing in
+`logs-*`. Traces and metrics reach it through an OpenTelemetry collector,
+landing in the APM streams. Two data views, and you have to leave one and search
+in the other to follow anything across them.
 
-**That click-through cannot work today, and moving the logs into the APM data
-stream will not fix it.** Elastic correlates a trace to its logs on `trace.id`.
-A Dapr log line does not carry one. Verified here: the span carries `trace_id`
-and `span_id`, while the matching `HTTP API Called` log line carries 14 fields
-and none of them is a trace or span id. So the data stream layout is not what is
-blocking it. The missing field is, and that is
-<https://github.com/dapr/dapr/issues/10979>.
-
-What you can do without it is stop switching panes. A Kibana data view takes a
-comma separated pattern, so one view covers all three signals.
+A Kibana data view takes a comma separated pattern, so one view covers all three.
 
 ![one data view](images/one-data-view.svg)
 
-One query, three data streams, two different collectors, real Dapr 1.19 data:
+That's the fix. One view, three patterns, nothing changes in the pipeline.
+
+Here it is against real Dapr 1.19 data: one query, three data streams, two
+different collectors.
 
 ![ES|QL across three streams](images/esql-three-streams.jpg)
 
-That buys one place to query and dashboards spanning both signals. It does not
-buy click-through.
-
-## The closest you get today
+## Lining a span up with its log lines
 
 Dapr sets `service.name` on the span to the app_id, so it already matches the
 log side. The span also carries `attributes.dapr.api` and
@@ -35,8 +26,12 @@ and a time window.
 
 Metrics join on `attributes.app_id`.
 
-That is a manual join in one view rather than a click, but it is a good deal
-tighter than matching on a timestamp.
+One thing this does not give you is Elastic's trace to logs click-through in the
+APM UI, which keys on `trace.id`. Dapr log lines do not carry one: the span has
+`trace_id` and `span_id`, the matching `HTTP API Called` line has 14 fields and
+none of them is a trace id. Moving the logs into the APM data stream would not
+change that either. That needs
+<https://github.com/dapr/dapr/issues/10979>.
 
 ## Dashboard
 

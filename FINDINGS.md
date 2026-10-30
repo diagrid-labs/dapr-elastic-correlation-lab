@@ -9,22 +9,6 @@ Screenshots of the main claims are in the README.
 
 Origin: Pylon #6591. Customer detail stays in the ticket.
 
-## 0. The data streams are not what blocks click-through
-
-The ask is to open a trace and see that trace's log lines, rather than switching
-panes. Elastic keys that correlation on `trace.id` on the log document. A Dapr
-log line does not have one.
-
-Verified on live data: the span carries `trace_id` and `span_id`; the matching
-`HTTP API Called` log line carries `app_id, code, duration, instance, level,
-method, msg, scope, size, time, type, useragent, ver` and nothing else.
-
-So moving the logs into the APM data stream would not restore the click either.
-The blocker is the missing field, not the stream layout. That is
-<https://github.com/dapr/dapr/issues/10979>.
-
-Everything below is what is achievable without it.
-
 ## 1. The data streams do not need merging
 
 A single Kibana data view accepts a comma separated pattern, and this holds for
@@ -114,7 +98,17 @@ The matching access log line carries:
 So spans and access log lines join on service plus API plus status plus a time
 window. Verified on live data for the same requests.
 
-## 4. Trace level click through is still unavailable
+## 4. APM click-through is a separate, unsolved thing
+
+The combined view removes the pane switching. It does not give Elastic's APM
+trace-to-logs click-through, which keys on `trace.id` on the log document.
+Verified: the span carries `trace_id` and `span_id`; the matching
+`HTTP API Called` line carries `app_id, code, duration, instance, level, method,
+msg, scope, size, time, type, useragent, ver` and nothing else. Moving the logs
+into the APM data stream would not restore it either, because the key is absent
+from the data rather than in the wrong place.
+
+## 4a. Trace level click through is still unavailable
 
 No `trace_id` on any log line, confirmed across 1347 documents, including the
 API logging lines and with tracing fully sampled and an explicit traceparent on
