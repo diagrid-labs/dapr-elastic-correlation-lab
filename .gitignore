@@ -1,0 +1,5 @@
+.DS_Store
+*.log
+esdata/
+__pycache__/
+*.pyc

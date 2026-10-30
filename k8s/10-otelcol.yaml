@@ -1,0 +1,59 @@
+# Collector as an ordinary Deployment, not a DaemonSet.
+# It receives OTLP and writes straight into Elasticsearch.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otelcol-cfg
+  namespace: default
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: {endpoint: 0.0.0.0:4317}
+    exporters:
+      elasticsearch:
+        endpoints: ["http://host.minikube.internal:9200"]
+        mapping: {mode: otel}
+        flush: {interval: 2s}
+    service:
+      telemetry:
+        logs: {level: debug}
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [elasticsearch]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otelcol
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: otelcol}
+  template:
+    metadata:
+      labels: {app: otelcol}
+    spec:
+      containers:
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.116.1
+          args: ["--config=/etc/otelcol/config.yaml"]
+          volumeMounts:
+            - {name: cfg, mountPath: /etc/otelcol}
+      volumes:
+        - name: cfg
+          configMap: {name: otelcol-cfg}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otelcol
+  namespace: default
+spec:
+  selector: {app: otelcol}
+  ports:
+    - {name: grpc, port: 4317, targetPort: 4317}
+    - {name: http, port: 4318, targetPort: 4318}

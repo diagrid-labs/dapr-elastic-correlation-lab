@@ -1,0 +1,25 @@
+{
+  "index_patterns": [
+    "metrics-*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  },
+  "priority": 500,
+  "data_stream": {
+    "hidden": false,
+    "allow_custom_routing": false
+  }
+}

@@ -1,0 +1,42 @@
+-- Verified against the lab data. Edit the index patterns to match the target
+-- cluster: with the APM integration traces land in traces-apm-* rather than
+-- traces-generic-default.
+
+-- One query spanning both patterns. This is the proof that logs and traces do
+-- not need to live in the same data stream to be queried together.
+-- METADATA _index is required; _index is not otherwise a selectable column.
+FROM logs-*, traces-* METADATA _index
+| STATS docs = COUNT(*) BY _index;
+
+-- Dapr API call volume by status code.
+FROM logs-*
+| WHERE message == "HTTP API Called"
+| STATS calls = COUNT(*) BY ts = BUCKET(@timestamp, 1 minute), code
+| SORT ts;
+
+-- 5xx ratio across all Dapr API calls.
+FROM logs-*
+| WHERE message == "HTTP API Called"
+| STATS total = COUNT(*), errors = COUNT(CASE(code >= 500, 1, null))
+| EVAL error_pct = ROUND(100.0 * errors / total, 2)
+| KEEP error_pct;
+
+-- p95 latency per Dapr API, from the trace side. Span duration is nanoseconds.
+FROM traces-*
+| STATS p95_ms = ROUND(PERCENTILE(duration, 95)/1000000.0, 3) BY api = attributes.dapr.api
+| SORT p95_ms DESC;
+
+-- Control plane log volume. The blank scope rows are real: the scheduler's
+-- embedded cron library logs under `logger` instead of `scope`.
+FROM logs-*
+| WHERE kubernetes.namespace == "dapr-system"
+| STATS lines = COUNT(*) BY scope, log.level
+| SORT lines DESC;
+
+-- The join. Spans and access log lines line up on service, API and status.
+-- service.name on the span resource attributes is the Dapr app_id.
+FROM traces-*
+| KEEP @timestamp, trace_id, resource.attributes.service.name,
+       attributes.dapr.api, attributes.dapr.status_code, duration
+| SORT @timestamp DESC
+| LIMIT 20;

@@ -1,0 +1,17 @@
+# Fully sampled tracing pushed to the collector over OTLP gRPC.
+# daprd is the client here: it pushes. Nothing scrapes the node, which is the
+# whole point when the application team has no node level privilege.
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: tracingcfg
+  namespace: default
+spec:
+  tracing:
+    samplingRate: "1"
+    otel:
+      endpointAddress: otelcol.default.svc.cluster.local:4317
+      protocol: grpc
+      isSecure: false
+  metrics:
+    enabled: true
