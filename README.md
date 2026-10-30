@@ -58,7 +58,21 @@ the APM UI does not work. Tracked in
 ## The lab
 
 Elasticsearch and Kibana 9.1 in Docker, Dapr 1.19 on minikube, a test workload
-and two collectors. `./scripts/setup.sh` starts it, `teardown.sh` removes it.
+and two collectors.
+
+    docker compose up -d
+
+    curl -X PUT localhost:9200/_index_template/lab-traces \
+      -H 'Content-Type: application/json' \
+      -d @elastic/index-templates/lab-traces.json
+
+    kubectl --context minikube apply -f k8s/
+
+The collectors write to `host.minikube.internal:9200`, so change that in
+`k8s/10-otelcol.yaml` and `k8s/30-logcol.yaml` if you are not on minikube.
+
+In Kibana, Stack Management, Saved Objects, import `elastic/dataviews.ndjson`
+and `elastic/dapr-elastic-dashboard.ndjson`.
 
     k8s/        tracing config, collectors, workload
     elastic/    dashboard, data views, queries
