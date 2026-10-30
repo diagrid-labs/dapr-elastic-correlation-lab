@@ -1,0 +1,76 @@
+# Collects container logs off the node and ships them to Elasticsearch.
+# This is the stand-in for the platform team's Fluentd: a DaemonSet, because
+# tailing files off the node is the one job that genuinely needs node access.
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: logcol, namespace: default}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: logcol}
+rules:
+  - apiGroups: [""]
+    resources: [pods, namespaces]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: logcol}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: logcol}
+subjects: [{kind: ServiceAccount, name: logcol, namespace: default}]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: logcol-cfg, namespace: default}
+data:
+  config.yaml: |
+    receivers:
+      filelog:
+        include:
+          - /var/log/pods/*/daprd/*.log
+          - /var/log/pods/dapr-system_*/*/*.log
+        include_file_path: true
+        start_at: end
+        operators:
+          - type: container
+          - type: json_parser
+            if: 'body matches "^\\{"'
+            parse_from: body
+            parse_to: attributes
+            severity:
+              parse_from: attributes.level
+    processors:
+      batch: {}
+    exporters:
+      elasticsearch:
+        endpoints: ["http://host.minikube.internal:9200"]
+        logs_index: logs-dapr-default
+        mapping: {mode: otel}
+        flush: {interval: 2s}
+    service:
+      telemetry: {logs: {level: info}}
+      pipelines:
+        logs:
+          receivers: [filelog]
+          processors: [batch]
+          exporters: [elasticsearch]
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: {name: logcol, namespace: default}
+spec:
+  selector: {matchLabels: {app: logcol}}
+  template:
+    metadata: {labels: {app: logcol}}
+    spec:
+      serviceAccountName: logcol
+      containers:
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.116.1
+          args: ["--config=/etc/otelcol/config.yaml"]
+          volumeMounts:
+            - {name: cfg, mountPath: /etc/otelcol}
+            - {name: varlogpods, mountPath: /var/log/pods, readOnly: true}
+      volumes:
+        - {name: cfg, configMap: {name: logcol-cfg}}
+        - {name: varlogpods, hostPath: {path: /var/log/pods}}

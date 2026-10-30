@@ -140,7 +140,6 @@ is present.
 - `elastic/dataviews.ndjson` — the three data views on their own.
 - `elastic/queries.esql` — every query, verified.
 
-
 ## Caveats
 
 - **Index names differ elsewhere.** This lab used `logs-dapr-default` and
@@ -163,6 +162,9 @@ is present.
 - A traffic driver in its own Deployment produces nothing, because daprd binds
   `--dapr-listen-addresses [::1],127.0.0.1`. It has to be a container in the
   same pod.
+- A `logs-*` index template at high priority shadows Elastic's own
+  `logs-otel@template` exactly as the metrics one does, and the collector's
+  parse failures carry an empty reason either way.
 - Kibana saved object imports fail on migration details rather than content:
   missing `datasourceStates.formBased.layers`, missing
   `indexpattern.currentIndexPatternId`, panel reference naming, and a 422 on
