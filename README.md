@@ -2,10 +2,10 @@
 
 ## The situation
 
-Dapr logs come in through the platform team's log shipper and land in `logs-*`.
-Traces and metrics come in through an OpenTelemetry collector and land in the
-APM streams. Two data views, so following anything across them means leaving one
-and searching in the other.
+Dapr logs come in through a log shipper and land in `logs-*`. Traces and
+metrics come in through an OpenTelemetry collector and land in the APM streams.
+Two data views, so following anything across them means leaving one and
+searching in the other.
 
 ## Combining them
 

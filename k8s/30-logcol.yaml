@@ -1,6 +1,6 @@
 # Collects container logs off the node and ships them to Elasticsearch.
-# This is the stand-in for the platform team's Fluentd: a DaemonSet, because
-# tailing files off the node is the one job that genuinely needs node access.
+# Stands in for Fluentd or any other log shipper. A DaemonSet, because tailing
+# files off the node is the one job that needs node access.
 apiVersion: v1
 kind: ServiceAccount
 metadata: {name: logcol, namespace: default}

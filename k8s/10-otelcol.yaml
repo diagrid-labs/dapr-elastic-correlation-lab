@@ -1,7 +1,6 @@
 # Collector as an ordinary Deployment, not a DaemonSet.
 # Traces arrive over OTLP because daprd pushes them. Metrics are scraped from
-# the daprd metrics endpoint inside the cluster. Neither needs node access,
-# which is the point when the application team does not own the nodes.
+# the daprd metrics endpoint inside the cluster. Neither needs node access.
 apiVersion: v1
 kind: ConfigMap
 metadata:
