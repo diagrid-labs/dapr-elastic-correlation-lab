@@ -5,7 +5,7 @@ Dapr 1.19.0 logs, traces and metrics from minikube. 1347 log documents, 60829
 spans, 577 metric documents, across three data streams written by two separate
 collectors.
 
-Screenshots of every claim below: [docs/screenshots.md](docs/screenshots.md).
+Screenshots of the main claims are in the README.
 
 Origin: Pylon #6591. Customer detail stays in the ticket.
 
@@ -139,7 +139,7 @@ is present.
   Dapr API from the trace side; control plane log volume by scope.
 - `elastic/dataviews.ndjson` — the three data views on their own.
 - `elastic/queries.esql` — every query, verified.
-- `docs/screenshots.md` — captures of each claim against live data.
+
 
 ## Caveats
 
