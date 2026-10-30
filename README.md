@@ -68,9 +68,7 @@ FROM logs-*, traces-* METADATA _index
 | SORT api, signal
 ```
 
-![span and log line side by side](images/span-log-join.jpg)
-
-The counts differ because one request writes one access log line but several
+Each API comes back twice with matching status. The counts differ because one request writes one access log line but several
 spans. The `::keyword` casts are needed because the same field is mapped as
 `keyword` in one stream and `text` in another.
 
